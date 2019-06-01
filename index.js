@@ -1,5 +1,5 @@
 const https = require('https')
-require('dotenv').config();
+require('dotenv').config({path: '/home/stephen_duvall13/Daily\ Dad\ Joke/.env'});
 
 const get_options = {
   hostname: 'icanhazdadjoke.com',
@@ -28,11 +28,12 @@ req.end()
 
 function sendMessage(joke) {
 	console.log(joke)
+  console.log (`bot_id ${process.env.BOT_ID}`)
 	const data = JSON.stringify({
 		'bot_id': process.env.BOT_ID,
 		'text': joke
 	})
-	
+
 	const post_options = {
 		hostname: 'api.groupme.com',
 		path: '/v3/bots/post',
@@ -46,7 +47,7 @@ function sendMessage(joke) {
 
 	const post_req = https.request(post_options, (res) => {
 		console.log(`post statusCode: ${res.statusCode}`)
-	
+
 		res.on('data', (d) => {
 			process.stdout.write(d)
 		})
@@ -55,7 +56,7 @@ function sendMessage(joke) {
 	post_req.on('error', (error) => {
 		console.log(error)
 	})
-	
+
 	post_req.write(data)
 	post_req.end()
 }
