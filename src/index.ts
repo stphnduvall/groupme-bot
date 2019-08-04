@@ -1,62 +1,65 @@
-const https = require('https')
-require('dotenv').config({path: '/home/stephen_duvall13/Daily\ Dad\ Joke/.env'});
+/*
+ *  This file will run the http server that receives the POST from GroupMe when
+ *  a message is sent to the group. It will parse the message for a possible
+ *  command and execute accordingly.
+ */
 
-const get_options = {
-  hostname: 'icanhazdadjoke.com',
-  port: 443,
-  path: '/',
-  method: 'GET',
-  headers: {
-    'Accept': 'application/json'
-  }
-}
+import http from 'http'
+import * as ConfigFile from './config'
 
-const req = https.request(get_options, (res) => {
-  console.log(`get statuscode: ${res.statusCode}`)
+let commands: Commands[] = []
+loadCommands(`${__dirname}/commands`)
 
-  res.on('data', (d) => {
-    joke = JSON.parse(d)
-    sendMessage(joke['joke'])
-  })
-})
+const server = http.createServer((req, res) => {
+  const data: string[] = []
 
-req.on('error', (error) => {
-  console.log(error)
-})
-
-req.end()
-
-function sendMessage(joke) {
-  console.log(joke)
-  console.log (`bot_id ${process.env.BOT_ID}`)
-  const data = JSON.stringify({
-    'bot_id': process.env.BOT_ID,
-    'text': joke
+  req.on('data', (d) => {
+    data.push(d)
   })
 
-  const post_options = {
-    hostname: 'api.groupme.com',
-    path: '/v3/bots/post',
-    port: 443,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': data.length
+  req.on('end', () => {
+    console.log(`DATA: ${data}`)
+
+    let message = JSON.parse(data.join(''))['text']
+    if (message[0] !== ConfigFile.config.prefix) { return }
+
+    handleCommand(message)
+  })
+
+  res.writeHead(200)
+  res.end()
+})
+
+async function handleCommand(message: string) {
+
+  // Parse command and args from the message
+  let command: string = message.split(' ')[0].replace(ConfigFile.config.prefix, '').toLowerCase()
+  let args = message.split(' ').slice(1)
+
+  console.log(`Command: ${command} \nArgs: ${args}`)
+
+  for (const commandsClass of commands) {
+    try {
+
+      if(!commandsClass.isThisCommand(command)) { continue }
+
+      await commandsClass.runCommand(args, message)
+
+    } catch (exception) {
+      console.log(exception)
     }
   }
-
-  const post_req = https.request(post_options, (res) => {
-    console.log(`post statusCode: ${res.statusCode}`)
-
-    res.on('data', (d) => {
-      process.stdout.write(d)
-    })
-  })
-
-  post_req.on('error', (error) => {
-    console.log(error)
-  })
-
-  post_req.write(data)
-  post_req.end()
 }
+
+function loadCommands(path: string) {
+  for (const commandName of ConfigFile.config.commands as string[]) {
+
+    const commandsClass = require(`${path}/${commandName}`).default
+
+    const command = new commandsClass() as Commands
+
+    commands.push(command)
+  }
+}
+
+server.listen(5000)
