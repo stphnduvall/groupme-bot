@@ -4,9 +4,18 @@
  *  array, it will be treated like it does not exist.
  */
 import * as https from 'https'
+import * as schedule from 'node-schedule'
 
 import { sendMessage } from '../api'
 import * as ConfigFile from '../config'
+
+let rule = new schedule.RecurrenceRule();
+rule.minute = 5
+rule.hour = 8
+
+schedule.scheduleJob(rule, () => {
+  new joke().runCommand()
+})
 
 export default class joke implements Commands {
 
@@ -30,7 +39,7 @@ export default class joke implements Commands {
     return command === this.__command
   }
 
-  runCommand(args: string[], msg: string): void {
+  runCommand(args?: string[], msg?: string): void {
     const req = https.request(this.get_options, (res) => {
       const chunks: string[] = []
 
